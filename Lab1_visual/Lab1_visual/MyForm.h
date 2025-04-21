@@ -24,6 +24,7 @@ namespace Lab1_visual {
 			// Привязка обработчиков событий
 			this->buttonMin->Click += gcnew System::EventHandler(this, &MyForm::buttonMin_Click);
 			this->buttonMax->Click += gcnew System::EventHandler(this, &MyForm::buttonMax_Click);
+			radioButtonBisection->Checked = true;
 		}
 
 	protected:
@@ -95,7 +96,6 @@ namespace Lab1_visual {
 		/// </summary>
 		System::ComponentModel::Container ^components;
 
-#pragma region Windows Form Designer generated code
 		/// <summary>
 		/// Требуемый метод для поддержки конструктора — не изменяйте 
 		/// содержимое этого метода с помощью редактора кода.
@@ -422,7 +422,7 @@ namespace Lab1_visual {
 			this->chart1->Name = L"chart1";
 			series1->ChartArea = L"ChartArea1";
 			series1->Legend = L"Legend1";
-			series1->Name = L"Series1";
+			series1->Name = L"Function";
 			this->chart1->Series->Add(series1);
 			this->chart1->Size = System::Drawing::Size(465, 491);
 			this->chart1->TabIndex = 4;
@@ -451,6 +451,8 @@ namespace Lab1_visual {
 			this->ResumeLayout(false);
 
 		}
+#pragma region Windows Form Designer generated code
+
 #pragma endregion
 	
 		float CalculateFunction(float x) {
@@ -498,7 +500,7 @@ namespace Lab1_visual {
 		float GoldenSectionMethod(float a, float b, float epsilon, bool find_max) {
 			int k = 0;
 			float del = fabs(a - b);
-			float y = a + (3.0f - sqrt(5.0f)) / 2.0f * (b - a);
+			float y = a + ((3.0f - sqrt(5.0f)) / 2.0f) * (b - a);
 			float z = a + b - y;
 
 			while (del > epsilon) {
@@ -536,6 +538,11 @@ namespace Lab1_visual {
 		}
 
 		float FibonacciMethod(float a, float b, float epsilon, float l, bool find_max) {
+			if (l <= 0 || l >= (b - a)) {
+				MessageBox::Show("Параметр l должен быть положительным и меньше длины отрезка!", "Ошибка");
+				return 0;
+			}
+
 			float FN = fabs(a - b) / l;
 			int N = 0;
 			while (FibonacciNumber(N) < FN) {
@@ -571,7 +578,7 @@ namespace Lab1_visual {
 			float func_y_final = CalculateFunction(y_final);
 			float func_z_final = CalculateFunction(z_final);
 
-			if (func_y_final <= func_z_final) {
+			if ((!find_max && func_y_final <= func_z_final) || (find_max && func_y_final >= func_z_final)) {
 				b = z_final;
 			}
 			else {
@@ -582,11 +589,11 @@ namespace Lab1_visual {
 		}
 
 	private: void DrawFunctionGraph(float a, float b) {
-		chart1->Series["Series1"]->Points->Clear();
+		chart1->Series["Function"]->Points->Clear();
 
-		chart1->Series["Series1"]->ChartType = System::Windows::Forms::DataVisualization::Charting::SeriesChartType::Line;
-		chart1->Series["Series1"]->Color = System::Drawing::Color::Blue;
-		chart1->Series["Series1"]->BorderWidth = 2;
+		chart1->Series["Function"]->ChartType = System::Windows::Forms::DataVisualization::Charting::SeriesChartType::Line;
+		chart1->Series["Function"]->Color = System::Drawing::Color::Blue;
+		chart1->Series["Function"]->BorderWidth = 2;
 
 		chart1->ChartAreas["ChartArea1"]->AxisX->Title = "x";
 		chart1->ChartAreas["ChartArea1"]->AxisY->Title = "f(x)";
@@ -601,7 +608,7 @@ namespace Lab1_visual {
 
 		for (float x = a; x <= b; x += step) {
 			float y = CalculateFunction(x);
-			chart1->Series["Series1"]->Points->AddXY(x, y);
+			chart1->Series["Function"]->Points->AddXY(x, y);
 		}
 		chart1->Update();
 	}
@@ -609,6 +616,8 @@ namespace Lab1_visual {
 	private: System::Void buttonMin_Click(System::Object^ sender, System::EventArgs^ e) {
 		try {
 			coefficients->Clear();
+			textBoxMaxX->Text = "";
+			textBoxFMax->Text = "";
 
 			if (String::IsNullOrWhiteSpace(textBoxDegree->Text)) {
 				MessageBox::Show("Введите степень многочлена!", "Ошибка");
@@ -619,7 +628,12 @@ namespace Lab1_visual {
 				return;
 			}
 
-			int degree = System::Convert::ToInt32(textBoxDegree->Text);
+			int degree;
+			if (!Int32::TryParse(textBoxDegree->Text, degree) || degree < 1) {
+				MessageBox::Show("Некорректная степень многочлена!", "Ошибка");
+				return;
+			}
+
 			array<String^>^ coefs = textBoxCoefficients->Text->Split(' ');
 			for each (String ^ coef in coefs) {
 				if (!String::IsNullOrWhiteSpace(coef)) {
@@ -634,10 +648,19 @@ namespace Lab1_visual {
 
 			float a = System::Convert::ToSingle(textBoxA->Text);
 			float b = System::Convert::ToSingle(textBoxB->Text);
-			DrawFunctionGraph(a, b);
-
 			float epsilon = System::Convert::ToSingle(textBoxEpsilon->Text);
 			float resultX = 0;
+
+			if (a >= b) {
+				MessageBox::Show("Левая граница должна быть меньше правой!", "Ошибка");
+				return;
+			}
+
+			if (epsilon <= 0) {
+				MessageBox::Show("Точность должна быть положительной!", "Ошибка");
+				return;
+			}
+			DrawFunctionGraph(a, b);
 
 			if (radioButtonBisection->Checked) {
 				resultX = BisectionMethod(a, b, epsilon, false);
@@ -653,6 +676,8 @@ namespace Lab1_visual {
 			float resultFMin = CalculateFunction(resultX);
 			textBoxMinX->Text = resultX.ToString("F6");
 			textBoxFMin->Text = resultFMin.ToString("F6");
+
+			chart1->Update();
 		}
 		catch (Exception^ ex) {
 			MessageBox::Show("Ошибка: " + ex->Message, "Ошибка",
@@ -662,6 +687,8 @@ namespace Lab1_visual {
 	private: System::Void buttonMax_Click(System::Object^ sender, System::EventArgs^ e) {
 		try {
 			coefficients->Clear();
+			textBoxMinX->Text = "";
+			textBoxFMin->Text = "";
 
 			if (String::IsNullOrWhiteSpace(textBoxDegree->Text)) {
 				MessageBox::Show("Введите степень многочлена!", "Ошибка");
@@ -672,7 +699,12 @@ namespace Lab1_visual {
 				return;
 			}
 
-			int degree = System::Convert::ToInt32(textBoxDegree->Text);
+			int degree;
+			if (!Int32::TryParse(textBoxDegree->Text, degree) || degree < 1) {
+				MessageBox::Show("Некорректная степень многочлена!", "Ошибка");
+				return;
+			}
+
 			array<String^>^ coefs = textBoxCoefficients->Text->Split(' ');
 			for each (String ^ coef in coefs) {
 				if (!String::IsNullOrWhiteSpace(coef)) {
@@ -687,10 +719,19 @@ namespace Lab1_visual {
 
 			float a = System::Convert::ToSingle(textBoxA->Text);
 			float b = System::Convert::ToSingle(textBoxB->Text);
-			DrawFunctionGraph(a, b);
-
 			float epsilon = System::Convert::ToSingle(textBoxEpsilon->Text);
 			float resultX = 0;
+
+			if (a >= b) {
+				MessageBox::Show("Левая граница должна быть меньше правой!", "Ошибка");
+				return;
+			}
+
+			if (epsilon <= 0) {
+				MessageBox::Show("Точность должна быть положительной!", "Ошибка");
+				return;
+			}
+			DrawFunctionGraph(a, b);
 
 			if (radioButtonBisection->Checked) {
 				resultX = BisectionMethod(a, b, epsilon, true);
@@ -706,6 +747,8 @@ namespace Lab1_visual {
 			float resultFMax = CalculateFunction(resultX);
 			textBoxMaxX->Text = resultX.ToString("F6");
 			textBoxFMax->Text = resultFMax.ToString("F6");
+
+			chart1->Update();
 		}
 		catch (Exception^ ex) {
 			MessageBox::Show("Ошибка: " + ex->Message, "Ошибка",
